@@ -1,0 +1,21 @@
+{
+  "name": "planckplay",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "bundle": "watchify main.js -o bundle.js",
+    "start": "npm run bundle"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "browserify": "^14.4.0",
+    "nodemon": "^1.12.1",
+    "planck-js": "^0.1.34"
+  },
+  "devDependencies": {
+    "watchify": "^3.9.0"
+  }
+}
