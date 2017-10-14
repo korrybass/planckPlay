@@ -1,129 +1,222 @@
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
-const planck = require('planck-js')
-const vec2 = planck.Vec2
 const {requestAnimationFrame, addEventListener} = window
 
-const drawPlayer = (name, ctx, physicsShape) => {
-  const {x, y} = physicsShape.getPosition()
-  ctx.beginPath()
-  ctx.rect(x,flipYAxis(y),10,10)
-    base_image = new Image()
-  base_image.src = 'img/icon.png'
-  ctx.drawImage(base_image, x, flipYAxis(y), 50, 50)
-  // ctx.stroke()
-  ctx.closePath()
-  ctx.name = name
-  planck.Renderer.addObject(ctx)
-}
+module.exports = (planck) => {
+  const vec2 = planck.Vec2
 
-const flipYAxis = (ycoor, ctx) => document.getElementById("scene").height - ycoor
-
-
-planck.Renderer = {
-  canvasRef: document.getElementById("scene"),
-  getContext: function() {
-    return this.canvasRef.getContext("2d")
-  },
-  sceneObjects: {},
-  addObject: function(obj) {
-    this.sceneObjects[obj.name] = obj
-  },
-  play: function(world) {
-    const self = this
-    requestAnimationFrame( ( ) =>{
-      const context = this.getContext()
-      context.clearRect(0,0, self.canvasRef.width, self.canvasRef.height)
-      let body = world.getBodyList()
-      const objKey = body.getUserData().name
-      drawPlayer(objKey, context, body)
-      world.step(1 / 10)
-      
-      // while(body.getNext()){
-      //   let fixture = body.getFixtureList()
-      //   while(fixture && fixture.getNext()){
-      //     fixture = fixture.getNext()
-      //   }
-      //   body = body.getNext()        
-      // }
-      planck.Renderer.play(world)
-    })
+  let Controls = {
+    isGoingRight: false,
+    isGoingLeft: false
   }
-}
 
-// World
-const world = new planck.World({
-  gravity: vec2(0,-10)
-})
-
-// Walls
-const wallLeft = world.createBody()
-const wallRight = world.createBody()
-wallLeft.createFixture(planck.Box(0,planck.Renderer.canvasRef.height))
-wallLeft.setPosition(vec2(0, planck.Renderer.canvasRef.height))
-wallRight.createFixture(planck.Box(0, planck.Renderer.canvasRef.height))
-wallRight.setPosition(vec2(planck.Renderer.canvasRef.width, planck.Renderer.canvasRef.height))
-
-// Ground
-const groundFD = {
-  density : 0.0,
-  friction : 0.1
-};
-const ground = world.createBody()
-ground.createFixture(planck.Box(planck.Renderer.canvasRef.width, 2), groundFD)
-
-// Player Box
-const playerSettings = {
-  friction: 30
-}
-const player = world.createDynamicBody(vec2(0,100))
-const playerFixture = player.createFixture(planck.Box(50,50), playerSettings)
-player.setUserData({name: 'box'})
-const context = planck.Renderer.canvasRef
-drawPlayer(player.getUserData().name, context.getContext("2d"), player)
-
-planck.Renderer.play(world)
-
-// Controls
-let Controls = {
-  isGoingRight: false,
-  isGoingLeft: false
-}
-
-const directionReset = () => {
-  Controls.isGoingLeft = false
-  Controls.isGoingRight = false
-}
-
-addEventListener('keydown', (e) => {
-  const {x, y} = player.getPosition()
-  const {keyCode} = e
-  player.setAwake(true)
-  if (keyCode === 39) { // right
+  const runRight = () => {
+    const player = planck.player
+    let vel = player.getLinearVelocity()
+    // console.log(vel)
+    vel.x = 10
+    player.setLinearVelocity(vel)
     Controls.isGoingRight = true    
-    player.setLinearVelocity(vec2(0, 0))    
-    player.applyForce(vec2(300, y), player.getWorldCenter())
   }
-  if (keyCode === 37) { // left
+  
+  const runLeft = () => {
+    const player = planck.player
+    let vel = player.getLinearVelocity()
+    vel.x = -10
     Controls.isGoingLeft = true    
-    player.setLinearVelocity(vec2(0, 0))
-    player.applyForce(vec2(-300, y), player.getWorldCenter())
+    player.setLinearVelocity(vel)
   }
-  if (keyCode === 38) { // up
-    if(Controls.isGoingLeft){
-      player.applyForce(vec2(-x, 400), player.getWorldCenter())
-    } else {
-      player.applyForce(vec2(x, 400), player.getWorldCenter())
+  
+  const jumpUp = (x, y) => {
+    const player = planck.player
+    const impulse = player.getMass() * 30
+    player.applyLinearImpulse(vec2(0, impulse), player.getWorldCenter())
+  }
+  
+  const getControls = () => {
+    return keyTracker 
+  }
+
+  let keyTracker = {
+    37: {
+      pressed: false,
+      action: runLeft
+    },
+    38: {
+      pressed: false,
+      action: jumpUp
+    },
+    39: {
+      pressed: false,
+      action: runRight
     }
   }
-})
 
-addEventListener('keyup', (e) => {
-  const {keyCode} = e
-  if(keyCode === 39 || keyCode === 37){
-    directionReset()
+  const activeKeyCode = (code) => {
+    if(keyTracker.hasOwnProperty(code)){      
+      keyTracker[code].pressed = true
+    }
   }
-})
-},{"planck-js":27}],2:[function(require,module,exports){
+  
+  const deactivateKeyCode = (code) => {
+    if(keyTracker.hasOwnProperty(code)){
+      keyTracker[code].pressed = false       
+    }      
+  }
+  
+  const directionReset = () => {
+    Controls.isGoingLeft = false
+    Controls.isGoingRight = false
+  }
+
+
+  addEventListener('keydown', (e) => {
+    const player = planck.player
+    const {x, y} = player.getPosition()
+    const {keyCode} = e
+    activeKeyCode(keyCode)      
+    player.setAwake(true)
+  })
+
+  addEventListener('keyup', (e) => {
+    const {keyCode} = e
+    if(keyCode === 39 || keyCode === 37){
+      directionReset()
+    }
+    deactivateKeyCode(keyCode)
+  })
+
+  return {
+    controlsLoop: () => {
+      const {x, y} = planck.player.getPosition()
+    
+      for(const key in keyTracker) {
+        if(keyTracker[key].pressed){
+          keyTracker[key].action(x, y)
+        }
+      }
+    }
+  }
+}
+},{}],2:[function(require,module,exports){
+module.exports = (planck, world) => {
+  const groundFD = {
+    density : 0.0,
+    friction : 0.1
+  }
+  const ground = world.createBody()
+  ground.createFixture(planck.Box(planck.canvasRef.width, 2), groundFD)
+}
+},{}],3:[function(require,module,exports){
+const { flipYAxis } = require('../lib/utils')
+
+module.exports = (planck, world) => {
+  const vec2 = planck.Vec2  
+  
+  const drawPlayer = (canvas, physicsShape) => {
+    const ctx = canvas.getContext("2d")
+    const {x, y} = physicsShape.getPosition()
+    ctx.beginPath()
+    ctx.rect(x,flipYAxis(y, canvas),50,50)
+    // base_image = new Image()
+    // base_image.src = 'img/icon.png'
+    // ctx.drawImage(base_image, x, flipYAxis(y, canvas), 50, 50)
+    ctx.stroke()
+    ctx.closePath()
+  }
+
+  const playerSettings = {
+    friction: 30,
+    mass: 30
+  }
+  const player = world.createDynamicBody(vec2(20,100))
+  const playerFixture = player.createFixture(planck.Box(50,50), playerSettings)
+  
+  player.setUserData({name: 'player'})
+  drawPlayer(planck.canvasRef, player)
+  player.drawPlayer = drawPlayer
+  
+  Object.assign(planck, {player})
+}
+},{"../lib/utils":7}],4:[function(require,module,exports){
+module.exports = (planck, world) => {
+  const vec2 = planck.Vec2  
+  const wallLeft = world.createBody()
+  const wallRight = world.createBody()
+  wallLeft.createFixture(planck.Box(-45,planck.canvasRef.height))
+  wallLeft.setPosition(vec2(0, planck.canvasRef.height))
+  wallRight.createFixture(planck.Box(0, planck.canvasRef.height))
+  wallRight.setPosition(vec2(planck.canvasRef.width, planck.canvasRef.height))
+}
+
+},{}],5:[function(require,module,exports){
+// World
+module.exports = (planck) => {
+  const vec2 = planck.Vec2  
+  const world = new planck.World({
+    gravity: vec2(0,-10)
+  })
+
+  return world
+} 
+
+},{}],6:[function(require,module,exports){
+const {requestAnimationFrame} = window
+const Controls = require('../components/Controls')
+
+module.exports = (planck, world) => {
+  //init Controls
+  const { controlsLoop } = Controls(planck, planck.player)
+
+  const renderProto = {
+    canvasRef: document.getElementById("scene"),
+    getContext: function() {
+      return this.canvasRef.getContext("2d")
+    },
+    sceneObjects: {},
+    play: function(world) {
+      const self = this
+      let initialRender = true
+      requestAnimationFrame( ( ) => {
+        const context = this.getContext()
+        context.clearRect(0,0, self.canvasRef.width, self.canvasRef.height)
+        let body = world.getBodyList()
+        world.step(1 / 10)
+        planck.player.drawPlayer(self.canvasRef, body)
+        
+        while(body.getNext()){
+          if (body.getUserData()  && body.getUserData().name === 'player') {
+            planck.player.drawPlayer(self.canvasRef, body)
+          }
+          let fixture = body.getFixtureList()
+          // while(fixture && fixture.getNext()){
+          //   fixture = fixture.getNext()
+          // }
+          body = body.getNext()
+        }
+        controlsLoop()
+        planck.play(world)
+      })
+    }
+  }
+
+  return Object.assign(planck, renderProto)
+}
+},{"../components/Controls":1}],7:[function(require,module,exports){
+
+module.exports = {
+  flipYAxis:(ycoor, canvas) => canvas.height - ycoor
+} 
+
+},{}],8:[function(require,module,exports){
+const planck = require('planck-js')
+const World = require('./components/world')(planck)
+const Renderer = require('./lib/Renderer')(planck, World)
+const Walls = require('./components/Walls')(planck, World)
+const Ground = require('./components/Ground')(planck, World)
+const Player = require('./components/Player')(planck, World)
+
+planck.play(World)
+},{"./components/Ground":2,"./components/Player":3,"./components/Walls":4,"./components/world":5,"./lib/Renderer":6,"planck-js":34}],9:[function(require,module,exports){
 /*
  * Copyright (c) 2016-2017 Ali Shakiba http://shakiba.me/planck.js
  * Copyright (c) 2006-2011 Erin Catto  http://www.box2d.org
@@ -1154,7 +1247,7 @@ Body.prototype.getLocalVector = function(worldVector) {
   return Rot.mulT(this.m_xf.q, worldVector);
 };
 
-},{"./Fixture":4,"./Shape":8,"./World":10,"./common/Math":18,"./common/Position":19,"./common/Rot":20,"./common/Sweep":21,"./common/Transform":22,"./common/Vec2":23,"./common/Velocity":25,"./util/common":51,"./util/options":53}],3:[function(require,module,exports){
+},{"./Fixture":11,"./Shape":15,"./World":17,"./common/Math":25,"./common/Position":26,"./common/Rot":27,"./common/Sweep":28,"./common/Transform":29,"./common/Vec2":30,"./common/Velocity":32,"./util/common":58,"./util/options":60}],10:[function(require,module,exports){
 /*
  * Copyright (c) 2016-2017 Ali Shakiba http://shakiba.me/planck.js
  * Copyright (c) 2006-2011 Erin Catto  http://www.box2d.org
@@ -2386,7 +2479,7 @@ Contact.destroy = function(contact, listener) {
   }
 };
 
-},{"./Manifold":6,"./Settings":7,"./collision/Distance":13,"./common/Mat22":16,"./common/Math":18,"./common/Rot":20,"./common/Transform":22,"./common/Vec2":23,"./util/common":51}],4:[function(require,module,exports){
+},{"./Manifold":13,"./Settings":14,"./collision/Distance":20,"./common/Mat22":23,"./common/Math":25,"./common/Rot":27,"./common/Transform":29,"./common/Vec2":30,"./util/common":58}],11:[function(require,module,exports){
 /*
  * Copyright (c) 2016-2017 Ali Shakiba http://shakiba.me/planck.js
  * Copyright (c) 2006-2011 Erin Catto  http://www.box2d.org
@@ -2788,7 +2881,7 @@ Fixture.prototype.shouldCollide = function(that) {
   return collide;
 }
 
-},{"./collision/AABB":11,"./common/Vec2":23,"./util/common":51,"./util/options":53}],5:[function(require,module,exports){
+},{"./collision/AABB":18,"./common/Vec2":30,"./util/common":58,"./util/options":60}],12:[function(require,module,exports){
 /*
  * Copyright (c) 2016-2017 Ali Shakiba http://shakiba.me/planck.js
  * Copyright (c) 2006-2011 Erin Catto  http://www.box2d.org
@@ -3003,7 +3096,7 @@ Joint.prototype.solveVelocityConstraints = function(step) {
  */
 Joint.prototype.solvePositionConstraints = function(step) {
 };
-},{"./util/common":51}],6:[function(require,module,exports){
+},{"./util/common":58}],13:[function(require,module,exports){
 /*
  * Copyright (c) 2016-2017 Ali Shakiba http://shakiba.me/planck.js
  * Copyright (c) 2006-2011 Erin Catto  http://www.box2d.org
@@ -3352,7 +3445,7 @@ function clipSegmentToLine(vOut, vIn, normal, offset, vertexIndexA) {
   return numOut;
 }
 
-},{"./common/Math":18,"./common/Rot":20,"./common/Transform":22,"./common/Vec2":23,"./util/common":51}],7:[function(require,module,exports){
+},{"./common/Math":25,"./common/Rot":27,"./common/Transform":29,"./common/Vec2":30,"./util/common":58}],14:[function(require,module,exports){
 /*
  * Copyright (c) 2016-2017 Ali Shakiba http://shakiba.me/planck.js
  * Copyright (c) 2006-2011 Erin Catto  http://www.box2d.org
@@ -3514,7 +3607,7 @@ Settings.angularSleepTolerance = (2.0 / 180.0 * Math.PI);
 Settings.angularSleepToleranceSqr = Math.pow(Settings.angularSleepTolerance, 2);
 
 
-},{}],8:[function(require,module,exports){
+},{}],15:[function(require,module,exports){
 /*
  * Copyright (c) 2016-2017 Ali Shakiba http://shakiba.me/planck.js
  * Copyright (c) 2006-2011 Erin Catto  http://www.box2d.org
@@ -3631,7 +3724,7 @@ Shape.prototype.computeMass = function(massData, density) {
 Shape.prototype.computeDistanceProxy = function(proxy) {
 };
 
-},{"./common/Math":18}],9:[function(require,module,exports){
+},{"./common/Math":25}],16:[function(require,module,exports){
 /*
  * Copyright (c) 2016-2017 Ali Shakiba http://shakiba.me/planck.js
  * Copyright (c) 2006-2011 Erin Catto  http://www.box2d.org
@@ -4612,7 +4705,7 @@ Solver.prototype.postSolveIsland = function() {
   }
 };
 
-},{"./Body":2,"./Contact":3,"./Joint":5,"./Settings":7,"./collision/Distance":13,"./collision/TimeOfImpact":15,"./common/Math":18,"./common/Vec2":23,"./util/Timer":50,"./util/common":51}],10:[function(require,module,exports){
+},{"./Body":9,"./Contact":10,"./Joint":12,"./Settings":14,"./collision/Distance":20,"./collision/TimeOfImpact":22,"./common/Math":25,"./common/Vec2":30,"./util/Timer":57,"./util/common":58}],17:[function(require,module,exports){
 /*
  * Copyright (c) 2016-2017 Ali Shakiba http://shakiba.me/planck.js
  * Copyright (c) 2006-2011 Erin Catto  http://www.box2d.org
@@ -5685,7 +5778,7 @@ World.prototype.postSolve = function(contact, impulse) {
  * Moved to Fixture.
  */
 
-},{"./Body":2,"./Contact":3,"./Solver":9,"./collision/BroadPhase":12,"./common/Vec2":23,"./util/Timer":50,"./util/common":51,"./util/options":53}],11:[function(require,module,exports){
+},{"./Body":9,"./Contact":10,"./Solver":16,"./collision/BroadPhase":19,"./common/Vec2":30,"./util/Timer":57,"./util/common":58,"./util/options":60}],18:[function(require,module,exports){
 /*
  * Copyright (c) 2016-2017 Ali Shakiba http://shakiba.me/planck.js
  * Copyright (c) 2006-2011 Erin Catto  http://www.box2d.org
@@ -5921,7 +6014,7 @@ AABB.prototype.rayCast = function(output, input) {
 AABB.prototype.toString = function() {
   return JSON.stringify(this);
 }
-},{"../Settings":7,"../common/Math":18,"../common/Vec2":23}],12:[function(require,module,exports){
+},{"../Settings":14,"../common/Math":25,"../common/Vec2":30}],19:[function(require,module,exports){
 /*
  * Copyright (c) 2016-2017 Ali Shakiba http://shakiba.me/planck.js
  * Copyright (c) 2006-2011 Erin Catto  http://www.box2d.org
@@ -6155,7 +6248,7 @@ BroadPhase.prototype.queryCallback = function(proxyId) {
   return true;
 }
 
-},{"../Settings":7,"../common/Math":18,"../util/common":51,"./AABB":11,"./DynamicTree":14}],13:[function(require,module,exports){
+},{"../Settings":14,"../common/Math":25,"../util/common":58,"./AABB":18,"./DynamicTree":21}],20:[function(require,module,exports){
 /*
  * Copyright (c) 2016-2017 Ali Shakiba http://shakiba.me/planck.js
  * Copyright (c) 2006-2011 Erin Catto  http://www.box2d.org
@@ -6863,7 +6956,7 @@ Distance.testOverlap = function(shapeA, indexA, shapeB, indexB, xfA, xfB) {
 
   return output.distance < 10.0 * Math.EPSILON;
 }
-},{"../Settings":7,"../common/Mat22":16,"../common/Mat33":17,"../common/Math":18,"../common/Position":19,"../common/Rot":20,"../common/Sweep":21,"../common/Transform":22,"../common/Vec2":23,"../common/Vec3":24,"../common/Velocity":25,"../common/stats":26,"../util/Timer":50,"../util/common":51}],14:[function(require,module,exports){
+},{"../Settings":14,"../common/Mat22":23,"../common/Mat33":24,"../common/Math":25,"../common/Position":26,"../common/Rot":27,"../common/Sweep":28,"../common/Transform":29,"../common/Vec2":30,"../common/Vec3":31,"../common/Velocity":32,"../common/stats":33,"../util/Timer":57,"../util/common":58}],21:[function(require,module,exports){
 /*
  * Copyright (c) 2016-2017 Ali Shakiba http://shakiba.me/planck.js
  * Copyright (c) 2006-2011 Erin Catto  http://www.box2d.org
@@ -7780,7 +7873,7 @@ function Iterator() {
   };
 }
 
-},{"../Settings":7,"../common/Math":18,"../common/Vec2":23,"../util/Pool":49,"../util/common":51,"./AABB":11}],15:[function(require,module,exports){
+},{"../Settings":14,"../common/Math":25,"../common/Vec2":30,"../util/Pool":56,"../util/common":58,"./AABB":18}],22:[function(require,module,exports){
 /*
  * Copyright (c) 2016-2017 Ali Shakiba http://shakiba.me/planck.js
  * Copyright (c) 2006-2011 Erin Catto  http://www.box2d.org
@@ -8293,7 +8386,7 @@ SeparationFunction.prototype.evaluate = function(t) {
   return this.compute(false, t);
 };
 
-},{"../Settings":7,"../common/Mat22":16,"../common/Mat33":17,"../common/Math":18,"../common/Position":19,"../common/Rot":20,"../common/Sweep":21,"../common/Transform":22,"../common/Vec2":23,"../common/Vec3":24,"../common/Velocity":25,"../common/stats":26,"../util/Timer":50,"../util/common":51,"./Distance":13}],16:[function(require,module,exports){
+},{"../Settings":14,"../common/Mat22":23,"../common/Mat33":24,"../common/Math":25,"../common/Position":26,"../common/Rot":27,"../common/Sweep":28,"../common/Transform":29,"../common/Vec2":30,"../common/Vec3":31,"../common/Velocity":32,"../common/stats":33,"../util/Timer":57,"../util/common":58,"./Distance":20}],23:[function(require,module,exports){
 /*
  * Copyright (c) 2016-2017 Ali Shakiba http://shakiba.me/planck.js
  * Copyright (c) 2006-2011 Erin Catto  http://www.box2d.org
@@ -8478,7 +8571,7 @@ Mat22.add = function(mx1, mx2) {
   return new Mat22(Vec2.add(mx1.ex + mx2.ex), Vec2.add(mx1.ey + mx2.ey));
 }
 
-},{"../util/common":51,"./Math":18,"./Vec2":23}],17:[function(require,module,exports){
+},{"../util/common":58,"./Math":25,"./Vec2":30}],24:[function(require,module,exports){
 /*
  * Copyright (c) 2016-2017 Ali Shakiba http://shakiba.me/planck.js
  * Copyright (c) 2006-2011 Erin Catto  http://www.box2d.org
@@ -8682,7 +8775,7 @@ Mat33.add = function(a, b) {
   return new Vec3(a.x + b.x, a.y + b.y, a.z + b.z);
 }
 
-},{"../util/common":51,"./Math":18,"./Vec2":23,"./Vec3":24}],18:[function(require,module,exports){
+},{"../util/common":58,"./Math":25,"./Vec2":30,"./Vec3":31}],25:[function(require,module,exports){
 /*
  * Copyright (c) 2016-2017 Ali Shakiba http://shakiba.me/planck.js
  * Copyright (c) 2006-2011 Erin Catto  http://www.box2d.org
@@ -8793,7 +8886,7 @@ math.random = function(min, max) {
   return min == max ? min : native.random() * (max - min) + min;
 };
 
-},{"../util/common":51,"../util/create":52}],19:[function(require,module,exports){
+},{"../util/common":58,"../util/create":59}],26:[function(require,module,exports){
 /*
  * Copyright (c) 2016-2017 Ali Shakiba http://shakiba.me/planck.js
  * Copyright (c) 2006-2011 Erin Catto  http://www.box2d.org
@@ -8835,7 +8928,7 @@ Position.prototype.getTransform = function(xf, p) {
   xf.p.set(Vec2.sub(this.c, Rot.mul(xf.q, p)));
   return xf;
 }
-},{"./Rot":20,"./Vec2":23}],20:[function(require,module,exports){
+},{"./Rot":27,"./Vec2":30}],27:[function(require,module,exports){
 /*
  * Copyright (c) 2016-2017 Ali Shakiba http://shakiba.me/planck.js
  * Copyright (c) 2006-2011 Erin Catto  http://www.box2d.org
@@ -9030,7 +9123,7 @@ Rot.mulT = function(rot, m) {
   }
 }
 
-},{"../util/common":51,"./Math":18,"./Vec2":23}],21:[function(require,module,exports){
+},{"../util/common":58,"./Math":25,"./Vec2":30}],28:[function(require,module,exports){
 /*
  * Copyright (c) 2016-2017 Ali Shakiba http://shakiba.me/planck.js
  * Copyright (c) 2006-2011 Erin Catto  http://www.box2d.org
@@ -9163,7 +9256,7 @@ Sweep.prototype.set = function(that) {
   this.c.set(that.c);
 };
 
-},{"../util/common":51,"./Math":18,"./Rot":20,"./Transform":22,"./Vec2":23}],22:[function(require,module,exports){
+},{"../util/common":58,"./Math":25,"./Rot":27,"./Transform":29,"./Vec2":30}],29:[function(require,module,exports){
 /*
  * Copyright (c) 2016-2017 Ali Shakiba http://shakiba.me/planck.js
  * Copyright (c) 2006-2011 Erin Catto  http://www.box2d.org
@@ -9334,7 +9427,7 @@ Transform.mulT = function(a, b) {
     return xf;
   }
 }
-},{"../util/common":51,"./Rot":20,"./Vec2":23}],23:[function(require,module,exports){
+},{"../util/common":58,"./Rot":27,"./Vec2":30}],30:[function(require,module,exports){
 /*
  * Copyright (c) 2016-2017 Ali Shakiba http://shakiba.me/planck.js
  * Copyright (c) 2006-2011 Erin Catto  http://www.box2d.org
@@ -9746,7 +9839,7 @@ Vec2.clamp = function(v, max) {
   return v;
 }
 
-},{"../util/common":51,"./Math":18}],24:[function(require,module,exports){
+},{"../util/common":58,"./Math":25}],31:[function(require,module,exports){
 /*
  * Copyright (c) 2016-2017 Ali Shakiba http://shakiba.me/planck.js
  * Copyright (c) 2006-2011 Erin Catto  http://www.box2d.org
@@ -9881,7 +9974,7 @@ Vec3.neg = function(v) {
   return new Vec3(-v.x, -v.y, -v.z);
 }
 
-},{"../util/common":51,"./Math":18}],25:[function(require,module,exports){
+},{"../util/common":58,"./Math":25}],32:[function(require,module,exports){
 /*
  * Copyright (c) 2016-2017 Ali Shakiba http://shakiba.me/planck.js
  * Copyright (c) 2006-2011 Erin Catto  http://www.box2d.org
@@ -9916,7 +10009,7 @@ function Velocity() {
   this.v = Vec2.zero();
   this.w = 0;
 }
-},{"./Vec2":23}],26:[function(require,module,exports){
+},{"./Vec2":30}],33:[function(require,module,exports){
 DEBUG = typeof DEBUG === 'undefined' ? false : DEBUG;
 ASSERT = typeof ASSERT === 'undefined' ? false : ASSERT;
 
@@ -9930,7 +10023,7 @@ exports.toString = function(newline) {
   }
   return string;
 };
-},{}],27:[function(require,module,exports){
+},{}],34:[function(require,module,exports){
 exports.internal = {};
 
 exports.Math = require('./common/Math');
@@ -9979,7 +10072,7 @@ exports.internal.TimeOfImpact = require('./collision/TimeOfImpact');
 exports.internal.DynamicTree = require('./collision/DynamicTree');
 exports.internal.Settings = require('./Settings');
 
-},{"./Body":2,"./Contact":3,"./Fixture":4,"./Joint":5,"./Manifold":6,"./Settings":7,"./Shape":8,"./World":10,"./collision/AABB":11,"./collision/Distance":13,"./collision/DynamicTree":14,"./collision/TimeOfImpact":15,"./common/Math":18,"./common/Rot":20,"./common/Sweep":21,"./common/Transform":22,"./common/Vec2":23,"./common/stats":26,"./joint/DistanceJoint":28,"./joint/FrictionJoint":29,"./joint/GearJoint":30,"./joint/MotorJoint":31,"./joint/MouseJoint":32,"./joint/PrismaticJoint":33,"./joint/PulleyJoint":34,"./joint/RevoluteJoint":35,"./joint/RopeJoint":36,"./joint/WeldJoint":37,"./joint/WheelJoint":38,"./shape/BoxShape":39,"./shape/ChainShape":40,"./shape/CircleShape":41,"./shape/CollideCircle":42,"./shape/CollideCirclePolygone":43,"./shape/CollideEdgeCircle":44,"./shape/CollideEdgePolygon":45,"./shape/CollidePolygon":46,"./shape/EdgeShape":47,"./shape/PolygonShape":48}],28:[function(require,module,exports){
+},{"./Body":9,"./Contact":10,"./Fixture":11,"./Joint":12,"./Manifold":13,"./Settings":14,"./Shape":15,"./World":17,"./collision/AABB":18,"./collision/Distance":20,"./collision/DynamicTree":21,"./collision/TimeOfImpact":22,"./common/Math":25,"./common/Rot":27,"./common/Sweep":28,"./common/Transform":29,"./common/Vec2":30,"./common/stats":33,"./joint/DistanceJoint":35,"./joint/FrictionJoint":36,"./joint/GearJoint":37,"./joint/MotorJoint":38,"./joint/MouseJoint":39,"./joint/PrismaticJoint":40,"./joint/PulleyJoint":41,"./joint/RevoluteJoint":42,"./joint/RopeJoint":43,"./joint/WeldJoint":44,"./joint/WheelJoint":45,"./shape/BoxShape":46,"./shape/ChainShape":47,"./shape/CircleShape":48,"./shape/CollideCircle":49,"./shape/CollideCirclePolygone":50,"./shape/CollideEdgeCircle":51,"./shape/CollideEdgePolygon":52,"./shape/CollidePolygon":53,"./shape/EdgeShape":54,"./shape/PolygonShape":55}],35:[function(require,module,exports){
 /*
  * Copyright (c) 2016-2017 Ali Shakiba http://shakiba.me/planck.js
  * Copyright (c) 2006-2011 Erin Catto  http://www.box2d.org
@@ -10312,7 +10405,7 @@ DistanceJoint.prototype.solvePositionConstraints = function(step) {
   return Math.abs(C) < Settings.linearSlop;
 }
 
-},{"../Joint":5,"../Settings":7,"../common/Mat22":16,"../common/Mat33":17,"../common/Math":18,"../common/Position":19,"../common/Rot":20,"../common/Sweep":21,"../common/Transform":22,"../common/Vec2":23,"../common/Vec3":24,"../common/Velocity":25,"../util/create":52,"../util/options":53}],29:[function(require,module,exports){
+},{"../Joint":12,"../Settings":14,"../common/Mat22":23,"../common/Mat33":24,"../common/Math":25,"../common/Position":26,"../common/Rot":27,"../common/Sweep":28,"../common/Transform":29,"../common/Vec2":30,"../common/Vec3":31,"../common/Velocity":32,"../util/create":59,"../util/options":60}],36:[function(require,module,exports){
 /*
  * Copyright (c) 2016-2017 Ali Shakiba http://shakiba.me/planck.js
  * Copyright (c) 2006-2011 Erin Catto  http://www.box2d.org
@@ -10622,7 +10715,7 @@ FrictionJoint.prototype.solvePositionConstraints = function(step) {
   return true;
 }
 
-},{"../Joint":5,"../Settings":7,"../common/Mat22":16,"../common/Mat33":17,"../common/Math":18,"../common/Position":19,"../common/Rot":20,"../common/Sweep":21,"../common/Transform":22,"../common/Vec2":23,"../common/Vec3":24,"../common/Velocity":25,"../util/common":51,"../util/create":52,"../util/options":53}],30:[function(require,module,exports){
+},{"../Joint":12,"../Settings":14,"../common/Mat22":23,"../common/Mat33":24,"../common/Math":25,"../common/Position":26,"../common/Rot":27,"../common/Sweep":28,"../common/Transform":29,"../common/Vec2":30,"../common/Vec3":31,"../common/Velocity":32,"../util/common":58,"../util/create":59,"../util/options":60}],37:[function(require,module,exports){
 /*
  * Copyright (c) 2016-2017 Ali Shakiba http://shakiba.me/planck.js
  * Copyright (c) 2006-2011 Erin Catto  http://www.box2d.org
@@ -11096,7 +11189,7 @@ GearJoint.prototype.solvePositionConstraints = function(step) {
   return linearError < Settings.linearSlop;
 }
 
-},{"../Joint":5,"../Settings":7,"../common/Mat22":16,"../common/Mat33":17,"../common/Math":18,"../common/Position":19,"../common/Rot":20,"../common/Sweep":21,"../common/Transform":22,"../common/Vec2":23,"../common/Vec3":24,"../common/Velocity":25,"../util/common":51,"../util/create":52,"../util/options":53,"./PrismaticJoint":33,"./RevoluteJoint":35}],31:[function(require,module,exports){
+},{"../Joint":12,"../Settings":14,"../common/Mat22":23,"../common/Mat33":24,"../common/Math":25,"../common/Position":26,"../common/Rot":27,"../common/Sweep":28,"../common/Transform":29,"../common/Vec2":30,"../common/Vec3":31,"../common/Velocity":32,"../util/common":58,"../util/create":59,"../util/options":60,"./PrismaticJoint":40,"./RevoluteJoint":42}],38:[function(require,module,exports){
 /*
  * Copyright (c) 2016-2017 Ali Shakiba http://shakiba.me/planck.js
  * Copyright (c) 2006-2011 Erin Catto  http://www.box2d.org
@@ -11455,7 +11548,7 @@ MotorJoint.prototype.solvePositionConstraints = function(step) {
   return true;
 }
 
-},{"../Joint":5,"../Settings":7,"../common/Mat22":16,"../common/Mat33":17,"../common/Math":18,"../common/Position":19,"../common/Rot":20,"../common/Sweep":21,"../common/Transform":22,"../common/Vec2":23,"../common/Vec3":24,"../common/Velocity":25,"../util/common":51,"../util/create":52,"../util/options":53}],32:[function(require,module,exports){
+},{"../Joint":12,"../Settings":14,"../common/Mat22":23,"../common/Mat33":24,"../common/Math":25,"../common/Position":26,"../common/Rot":27,"../common/Sweep":28,"../common/Transform":29,"../common/Vec2":30,"../common/Vec3":31,"../common/Velocity":32,"../util/common":58,"../util/create":59,"../util/options":60}],39:[function(require,module,exports){
 /*
  * Copyright (c) 2016-2017 Ali Shakiba http://shakiba.me/planck.js
  * Copyright (c) 2006-2011 Erin Catto  http://www.box2d.org
@@ -11749,7 +11842,7 @@ MouseJoint.prototype.solvePositionConstraints = function(step) {
   return true;
 }
 
-},{"../Joint":5,"../common/Mat22":16,"../common/Mat33":17,"../common/Math":18,"../common/Position":19,"../common/Rot":20,"../common/Sweep":21,"../common/Transform":22,"../common/Vec2":23,"../common/Vec3":24,"../common/Velocity":25,"../util/common":51,"../util/create":52,"../util/options":53}],33:[function(require,module,exports){
+},{"../Joint":12,"../common/Mat22":23,"../common/Mat33":24,"../common/Math":25,"../common/Position":26,"../common/Rot":27,"../common/Sweep":28,"../common/Transform":29,"../common/Vec2":30,"../common/Vec3":31,"../common/Velocity":32,"../util/common":58,"../util/create":59,"../util/options":60}],40:[function(require,module,exports){
 /*
  * Copyright (c) 2016-2017 Ali Shakiba http://shakiba.me/planck.js
  * Copyright (c) 2006-2011 Erin Catto  http://www.box2d.org
@@ -12489,7 +12582,7 @@ PrismaticJoint.prototype.solvePositionConstraints = function(step) {
       && angularError <= Settings.angularSlop;
 }
 
-},{"../Joint":5,"../Settings":7,"../common/Mat22":16,"../common/Mat33":17,"../common/Math":18,"../common/Position":19,"../common/Rot":20,"../common/Sweep":21,"../common/Transform":22,"../common/Vec2":23,"../common/Vec3":24,"../common/Velocity":25,"../util/common":51,"../util/create":52,"../util/options":53}],34:[function(require,module,exports){
+},{"../Joint":12,"../Settings":14,"../common/Mat22":23,"../common/Mat33":24,"../common/Math":25,"../common/Position":26,"../common/Rot":27,"../common/Sweep":28,"../common/Transform":29,"../common/Vec2":30,"../common/Vec3":31,"../common/Velocity":32,"../util/common":58,"../util/create":59,"../util/options":60}],41:[function(require,module,exports){
 /*
  * Copyright (c) 2016-2017 Ali Shakiba http://shakiba.me/planck.js
  * Copyright (c) 2006-2011 Erin Catto  http://www.box2d.org
@@ -12866,7 +12959,7 @@ PulleyJoint.prototype.solvePositionConstraints = function(step) {
   return linearError < Settings.linearSlop;
 }
 
-},{"../Joint":5,"../Settings":7,"../common/Mat22":16,"../common/Mat33":17,"../common/Math":18,"../common/Position":19,"../common/Rot":20,"../common/Sweep":21,"../common/Transform":22,"../common/Vec2":23,"../common/Vec3":24,"../common/Velocity":25,"../util/common":51,"../util/create":52,"../util/options":53}],35:[function(require,module,exports){
+},{"../Joint":12,"../Settings":14,"../common/Mat22":23,"../common/Mat33":24,"../common/Math":25,"../common/Position":26,"../common/Rot":27,"../common/Sweep":28,"../common/Transform":29,"../common/Vec2":30,"../common/Vec3":31,"../common/Velocity":32,"../util/common":58,"../util/create":59,"../util/options":60}],42:[function(require,module,exports){
 /*
  * Copyright (c) 2016-2017 Ali Shakiba http://shakiba.me/planck.js
  * Copyright (c) 2006-2011 Erin Catto  http://www.box2d.org
@@ -13485,7 +13578,7 @@ RevoluteJoint.prototype.solvePositionConstraints = function(step) {
       && angularError <= Settings.angularSlop;
 }
 
-},{"../Joint":5,"../Settings":7,"../common/Mat22":16,"../common/Mat33":17,"../common/Math":18,"../common/Position":19,"../common/Rot":20,"../common/Sweep":21,"../common/Transform":22,"../common/Vec2":23,"../common/Vec3":24,"../common/Velocity":25,"../util/common":51,"../util/create":52,"../util/options":53}],36:[function(require,module,exports){
+},{"../Joint":12,"../Settings":14,"../common/Mat22":23,"../common/Mat33":24,"../common/Math":25,"../common/Position":26,"../common/Rot":27,"../common/Sweep":28,"../common/Transform":29,"../common/Vec2":30,"../common/Vec3":31,"../common/Velocity":32,"../util/common":58,"../util/create":59,"../util/options":60}],43:[function(require,module,exports){
 /*
  * Copyright (c) 2016-2017 Ali Shakiba http://shakiba.me/planck.js
  * Copyright (c) 2006-2011 Erin Catto  http://www.box2d.org
@@ -13797,7 +13890,7 @@ RopeJoint.prototype.solvePositionConstraints = function(step) {
   return length - this.m_maxLength < Settings.linearSlop;
 }
 
-},{"../Joint":5,"../Settings":7,"../common/Mat22":16,"../common/Mat33":17,"../common/Math":18,"../common/Position":19,"../common/Rot":20,"../common/Sweep":21,"../common/Transform":22,"../common/Vec2":23,"../common/Vec3":24,"../common/Velocity":25,"../util/create":52,"../util/options":53}],37:[function(require,module,exports){
+},{"../Joint":12,"../Settings":14,"../common/Mat22":23,"../common/Mat33":24,"../common/Math":25,"../common/Position":26,"../common/Rot":27,"../common/Sweep":28,"../common/Transform":29,"../common/Vec2":30,"../common/Vec3":31,"../common/Velocity":32,"../util/create":59,"../util/options":60}],44:[function(require,module,exports){
 /*
  * Copyright (c) 2016-2017 Ali Shakiba http://shakiba.me/planck.js
  * Copyright (c) 2006-2011 Erin Catto  http://www.box2d.org
@@ -14223,7 +14316,7 @@ WeldJoint.prototype.solvePositionConstraints = function(step) {
       && angularError <= Settings.angularSlop;
 }
 
-},{"../Joint":5,"../Settings":7,"../common/Mat22":16,"../common/Mat33":17,"../common/Math":18,"../common/Position":19,"../common/Rot":20,"../common/Sweep":21,"../common/Transform":22,"../common/Vec2":23,"../common/Vec3":24,"../common/Velocity":25,"../util/create":52,"../util/options":53}],38:[function(require,module,exports){
+},{"../Joint":12,"../Settings":14,"../common/Mat22":23,"../common/Mat33":24,"../common/Math":25,"../common/Position":26,"../common/Rot":27,"../common/Sweep":28,"../common/Transform":29,"../common/Vec2":30,"../common/Vec3":31,"../common/Velocity":32,"../util/create":59,"../util/options":60}],45:[function(require,module,exports){
 /*
  * Copyright (c) 2016-2017 Ali Shakiba http://shakiba.me/planck.js
  * Copyright (c) 2006-2011 Erin Catto  http://www.box2d.org
@@ -14758,7 +14851,7 @@ WheelJoint.prototype.solvePositionConstraints = function(step) {
   return Math.abs(C) <= Settings.linearSlop;
 }
 
-},{"../Joint":5,"../Settings":7,"../common/Mat22":16,"../common/Mat33":17,"../common/Math":18,"../common/Position":19,"../common/Rot":20,"../common/Sweep":21,"../common/Transform":22,"../common/Vec2":23,"../common/Vec3":24,"../common/Velocity":25,"../util/create":52,"../util/options":53}],39:[function(require,module,exports){
+},{"../Joint":12,"../Settings":14,"../common/Mat22":23,"../common/Mat33":24,"../common/Math":25,"../common/Position":26,"../common/Rot":27,"../common/Sweep":28,"../common/Transform":29,"../common/Vec2":30,"../common/Vec3":31,"../common/Velocity":32,"../util/create":59,"../util/options":60}],46:[function(require,module,exports){
 /*
  * Copyright (c) 2016-2017 Ali Shakiba http://shakiba.me/planck.js
  * Copyright (c) 2006-2011 Erin Catto  http://www.box2d.org
@@ -14839,7 +14932,7 @@ function BoxShape(hx, hy, center, angle) {
 }
 
 
-},{"../Settings":7,"../collision/AABB":11,"../common/Math":18,"../common/Rot":20,"../common/Transform":22,"../common/Vec2":23,"../util/common":51,"../util/create":52,"../util/options":53,"./PolygonShape":48}],40:[function(require,module,exports){
+},{"../Settings":14,"../collision/AABB":18,"../common/Math":25,"../common/Rot":27,"../common/Transform":29,"../common/Vec2":30,"../util/common":58,"../util/create":59,"../util/options":60,"./PolygonShape":55}],47:[function(require,module,exports){
 /*
  * Copyright (c) 2016-2017 Ali Shakiba http://shakiba.me/planck.js
  * Copyright (c) 2006-2011 Erin Catto  http://www.box2d.org
@@ -15087,7 +15180,7 @@ ChainShape.prototype.computeDistanceProxy = function(proxy, childIndex) {
   proxy.m_count = 2;
   proxy.m_radius = this.m_radius;
 };
-},{"../Settings":7,"../Shape":8,"../collision/AABB":11,"../common/Math":18,"../common/Rot":20,"../common/Transform":22,"../common/Vec2":23,"../util/common":51,"../util/create":52,"../util/options":53,"./EdgeShape":47}],41:[function(require,module,exports){
+},{"../Settings":14,"../Shape":15,"../collision/AABB":18,"../common/Math":25,"../common/Rot":27,"../common/Transform":29,"../common/Vec2":30,"../util/common":58,"../util/create":59,"../util/options":60,"./EdgeShape":54}],48:[function(require,module,exports){
 /*
  * Copyright (c) 2016-2017 Ali Shakiba http://shakiba.me/planck.js
  * Copyright (c) 2006-2011 Erin Catto  http://www.box2d.org
@@ -15246,7 +15339,7 @@ CircleShape.prototype.computeDistanceProxy = function(proxy) {
   proxy.m_radius = this.m_radius;
 };
 
-},{"../Settings":7,"../Shape":8,"../collision/AABB":11,"../common/Math":18,"../common/Rot":20,"../common/Transform":22,"../common/Vec2":23,"../util/common":51,"../util/create":52,"../util/options":53}],42:[function(require,module,exports){
+},{"../Settings":14,"../Shape":15,"../collision/AABB":18,"../common/Math":25,"../common/Rot":27,"../common/Transform":29,"../common/Vec2":30,"../util/common":58,"../util/create":59,"../util/options":60}],49:[function(require,module,exports){
 /*
  * Copyright (c) 2016-2017 Ali Shakiba http://shakiba.me/planck.js
  * Copyright (c) 2006-2011 Erin Catto  http://www.box2d.org
@@ -15311,7 +15404,7 @@ function CollideCircles(manifold, circleA, xfA, circleB, xfB) {
 }
 
 exports.CollideCircles = CollideCircles;
-},{"../Contact":3,"../Manifold":6,"../Settings":7,"../Shape":8,"../common/Math":18,"../common/Transform":22,"../common/Vec2":23,"../util/common":51,"../util/create":52,"./CircleShape":41}],43:[function(require,module,exports){
+},{"../Contact":10,"../Manifold":13,"../Settings":14,"../Shape":15,"../common/Math":25,"../common/Transform":29,"../common/Vec2":30,"../util/common":58,"../util/create":59,"./CircleShape":48}],50:[function(require,module,exports){
 /*
  * Copyright (c) 2016-2017 Ali Shakiba http://shakiba.me/planck.js
  * Copyright (c) 2006-2011 Erin Catto  http://www.box2d.org
@@ -15446,7 +15539,7 @@ function CollidePolygonCircle(manifold, polygonA, xfA, circleB, xfB) {
   }
 }
 
-},{"../Contact":3,"../Manifold":6,"../Settings":7,"../Shape":8,"../collision/AABB":11,"../common/Math":18,"../common/Rot":20,"../common/Transform":22,"../common/Vec2":23,"../util/common":51,"./CircleShape":41,"./PolygonShape":48}],44:[function(require,module,exports){
+},{"../Contact":10,"../Manifold":13,"../Settings":14,"../Shape":15,"../collision/AABB":18,"../common/Math":25,"../common/Rot":27,"../common/Transform":29,"../common/Vec2":30,"../util/common":58,"./CircleShape":48,"./PolygonShape":55}],51:[function(require,module,exports){
 /*
  * Copyright (c) 2016-2017 Ali Shakiba http://shakiba.me/planck.js
  * Copyright (c) 2006-2011 Erin Catto  http://www.box2d.org
@@ -15628,7 +15721,7 @@ function CollideEdgeCircle(manifold, edgeA, xfA, circleB, xfB) {
   manifold.points[0].id.cf.typeB = Manifold.e_vertex;
 }
 
-},{"../Contact":3,"../Manifold":6,"../Settings":7,"../Shape":8,"../common/Math":18,"../common/Rot":20,"../common/Transform":22,"../common/Vec2":23,"../util/common":51,"../util/create":52,"./ChainShape":40,"./CircleShape":41,"./EdgeShape":47}],45:[function(require,module,exports){
+},{"../Contact":10,"../Manifold":13,"../Settings":14,"../Shape":15,"../common/Math":25,"../common/Rot":27,"../common/Transform":29,"../common/Vec2":30,"../util/common":58,"../util/create":59,"./ChainShape":47,"./CircleShape":48,"./EdgeShape":54}],52:[function(require,module,exports){
 /*
  * Copyright (c) 2016-2017 Ali Shakiba http://shakiba.me/planck.js
  * Copyright (c) 2006-2011 Erin Catto  http://www.box2d.org
@@ -16115,7 +16208,7 @@ function CollideEdgePolygon(manifold, edgeA, xfA, polygonB, xfB) {
   manifold.pointCount = pointCount;
 }
 
-},{"../Contact":3,"../Manifold":6,"../Settings":7,"../Shape":8,"../common/Math":18,"../common/Rot":20,"../common/Transform":22,"../common/Vec2":23,"../util/common":51,"../util/create":52,"./ChainShape":40,"./EdgeShape":47,"./PolygonShape":48}],46:[function(require,module,exports){
+},{"../Contact":10,"../Manifold":13,"../Settings":14,"../Shape":15,"../common/Math":25,"../common/Rot":27,"../common/Transform":29,"../common/Vec2":30,"../util/common":58,"../util/create":59,"./ChainShape":47,"./EdgeShape":54,"./PolygonShape":55}],53:[function(require,module,exports){
 /*
  * Copyright (c) 2016-2017 Ali Shakiba http://shakiba.me/planck.js
  * Copyright (c) 2006-2011 Erin Catto  http://www.box2d.org
@@ -16378,7 +16471,7 @@ function CollidePolygons(manifold, polyA, xfA, polyB, xfB) {
   manifold.pointCount = pointCount;
 }
 
-},{"../Contact":3,"../Manifold":6,"../Settings":7,"../Shape":8,"../collision/AABB":11,"../common/Math":18,"../common/Rot":20,"../common/Transform":22,"../common/Vec2":23,"../util/common":51,"./PolygonShape":48}],47:[function(require,module,exports){
+},{"../Contact":10,"../Manifold":13,"../Settings":14,"../Shape":15,"../collision/AABB":18,"../common/Math":25,"../common/Rot":27,"../common/Transform":29,"../common/Vec2":30,"../util/common":58,"./PolygonShape":55}],54:[function(require,module,exports){
 /*
  * Copyright (c) 2016-2017 Ali Shakiba http://shakiba.me/planck.js
  * Copyright (c) 2006-2011 Erin Catto  http://www.box2d.org
@@ -16577,7 +16670,7 @@ EdgeShape.prototype.computeDistanceProxy = function(proxy) {
   proxy.m_radius = this.m_radius;
 };
 
-},{"../Settings":7,"../Shape":8,"../collision/AABB":11,"../common/Math":18,"../common/Rot":20,"../common/Transform":22,"../common/Vec2":23,"../util/create":52,"../util/options":53}],48:[function(require,module,exports){
+},{"../Settings":14,"../Shape":15,"../collision/AABB":18,"../common/Math":25,"../common/Rot":27,"../common/Transform":29,"../common/Vec2":30,"../util/create":59,"../util/options":60}],55:[function(require,module,exports){
 /*
  * Copyright (c) 2016-2017 Ali Shakiba http://shakiba.me/planck.js
  * Copyright (c) 2006-2011 Erin Catto  http://www.box2d.org
@@ -17038,7 +17131,7 @@ PolygonShape.prototype.computeDistanceProxy = function(proxy) {
   proxy.m_count = this.m_count;
   proxy.m_radius = this.m_radius;
 };
-},{"../Settings":7,"../Shape":8,"../collision/AABB":11,"../common/Math":18,"../common/Rot":20,"../common/Transform":22,"../common/Vec2":23,"../util/common":51,"../util/create":52,"../util/options":53}],49:[function(require,module,exports){
+},{"../Settings":14,"../Shape":15,"../collision/AABB":18,"../common/Math":25,"../common/Rot":27,"../common/Transform":29,"../common/Vec2":30,"../util/common":58,"../util/create":59,"../util/options":60}],56:[function(require,module,exports){
 /*
  * Copyright (c) 2016-2017 Ali Shakiba http://shakiba.me/planck.js
  *
@@ -17127,7 +17220,7 @@ function Pool(opts) {
         + _discardCount + " =" + _list.length + "/" + _max;
   };
 }
-},{}],50:[function(require,module,exports){
+},{}],57:[function(require,module,exports){
 DEBUG = typeof DEBUG === 'undefined' ? false : DEBUG;
 ASSERT = typeof ASSERT === 'undefined' ? false : ASSERT;
 
@@ -17139,7 +17232,7 @@ module.exports.diff = function(time) {
   return Date.now() - time;
 }
 
-},{}],51:[function(require,module,exports){
+},{}],58:[function(require,module,exports){
 DEBUG = typeof DEBUG === 'undefined' ? false : DEBUG;
 ASSERT = typeof ASSERT === 'undefined' ? false : ASSERT;
 
@@ -17154,7 +17247,7 @@ exports.assert = function(statement, err, log) {
   log && console.log(log);
   throw new Error(err);
 };
-},{}],52:[function(require,module,exports){
+},{}],59:[function(require,module,exports){
 if (typeof Object.create == 'function') {
   module.exports = function(proto, props) {
     return Object.create.call(Object, proto, props);
@@ -17172,7 +17265,7 @@ if (typeof Object.create == 'function') {
   }
 }
 
-},{}],53:[function(require,module,exports){
+},{}],60:[function(require,module,exports){
 DEBUG = typeof DEBUG === 'undefined' ? false : DEBUG;
 ASSERT = typeof ASSERT === 'undefined' ? false : ASSERT;
 
@@ -17201,4 +17294,4 @@ module.exports = function(to, from) {
   return to;
 };
 
-},{}]},{},[1]);
+},{}]},{},[8]);
