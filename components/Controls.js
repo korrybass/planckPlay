@@ -11,7 +11,6 @@ module.exports = (planck) => {
   const runRight = () => {
     const player = planck.player
     let vel = player.getLinearVelocity()
-    // console.log(vel)
     vel.x = 10
     player.setLinearVelocity(vel)
     Controls.isGoingRight = true    
